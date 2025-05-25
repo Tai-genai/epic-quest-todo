@@ -52,6 +52,7 @@ npm install
 ```bash
 cp .env.example .env
 # .envファイルを編集してJWT_SECRETを設定
+# 例: openssl rand -hex 32 をターミナルで実行して生成した文字列を設定
 ```
 
 4. アプリケーションを起動
