@@ -2,11 +2,12 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from '../models/database';
+import { validateAuth } from '../middleware/validation';
 
 const router = express.Router();
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', validateAuth, async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
@@ -52,7 +53,7 @@ router.post('/register', async (req, res) => {
 });
 
 // Login
-router.post('/login', (req, res) => {
+router.post('/login', validateAuth, (req, res) => {
   const { username, password } = req.body;
 
   db.get(

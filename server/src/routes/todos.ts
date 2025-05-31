@@ -1,6 +1,7 @@
 import express from 'express';
 import db from '../models/database';
 import { authenticateToken } from '../middleware/auth';
+import { validateTodo } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -19,8 +20,8 @@ router.get('/', authenticateToken, (req: any, res) => {
 });
 
 // Create todo
-router.post('/', authenticateToken, (req: any, res) => {
-  const { title, description, priority, difficulty, due_date } = req.body;
+router.post('/', authenticateToken, validateTodo, (req: any, res) => {
+  const { title, description, priority, difficulty, due_date, category, tags } = req.body;
   
   // Calculate experience points based on difficulty
   const expPoints = {
@@ -31,9 +32,9 @@ router.post('/', authenticateToken, (req: any, res) => {
   };
 
   db.run(
-    `INSERT INTO todos (user_id, title, description, priority, difficulty, experience_points, due_date) 
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [req.userId, title, description, priority, difficulty, expPoints[difficulty as keyof typeof expPoints] || 10, due_date],
+    `INSERT INTO todos (user_id, title, description, priority, difficulty, experience_points, due_date, category, tags) 
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [req.userId, title, description, priority, difficulty, expPoints[difficulty as keyof typeof expPoints] || 10, due_date, category || 'general', tags ? JSON.stringify(tags) : null],
     function(err) {
       if (err) {
         return res.status(500).json({ message: 'Error creating todo' });
@@ -46,7 +47,10 @@ router.post('/', authenticateToken, (req: any, res) => {
         priority,
         difficulty,
         experience_points: expPoints[difficulty as keyof typeof expPoints] || 10,
-        completed: false
+        completed: false,
+        category: category || 'general',
+        tags: tags,
+        due_date
       });
     }
   );

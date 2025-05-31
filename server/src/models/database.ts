@@ -36,6 +36,8 @@ export const initDatabase = (): Promise<void> => {
           due_date DATETIME,
           completed_at DATETIME,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          category TEXT DEFAULT 'general',
+          tags TEXT,
           FOREIGN KEY (user_id) REFERENCES users (id)
         )
       `);
@@ -74,7 +76,11 @@ export const initDatabase = (): Promise<void> => {
         ('Month Master', '30 day streak', '⚡', 30, 'streak'),
         ('Level 5', 'Reach level 5', '⭐', 5, 'level'),
         ('Level 10', 'Reach level 10', '🌟', 10, 'level')
-      `, (err) => {
+      `);
+
+      // Add category and tags columns to existing todos table (migration)
+      db.run(`ALTER TABLE todos ADD COLUMN category TEXT DEFAULT 'general'`, () => {});
+      db.run(`ALTER TABLE todos ADD COLUMN tags TEXT`, (err) => {
         if (err) {
           reject(err);
         } else {

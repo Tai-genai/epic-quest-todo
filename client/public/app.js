@@ -287,6 +287,32 @@ const renderDashboard = () => {
                     </div>
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div>
+                            <label class="block text-sm font-medium mb-2">Category</label>
+                            <select name="category" 
+                                class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:border-purple-400 focus:outline-none transition-colors">
+                                <option value="general">📋 General</option>
+                                <option value="work">💼 Work</option>
+                                <option value="personal">👤 Personal</option>
+                                <option value="health">🏃 Health</option>
+                                <option value="learning">📚 Learning</option>
+                                <option value="creative">🎨 Creative</option>
+                                <option value="social">👥 Social</option>
+                                <option value="finance">💰 Finance</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Due Date</label>
+                            <input type="datetime-local" name="due_date" 
+                                class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:border-purple-400 focus:outline-none transition-colors">
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Tags (separate with commas)</label>
+                        <input type="text" name="tags" placeholder="urgent, important, quick" 
+                            class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:border-purple-400 focus:outline-none transition-colors">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
                             <label class="block text-sm font-medium mb-2">Priority</label>
                             <select name="priority" 
                                 class="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 focus:border-purple-400 focus:outline-none transition-colors">
@@ -333,15 +359,45 @@ const renderTodoList = () => {
         `;
     }
 
-    return todos.filter(todo => !todo.completed).map(todo => `
-        <div class="p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all priority-${todo.priority}">
+    // Sort todos by due date (upcoming first), then by priority
+    const sortedTodos = todos.filter(todo => !todo.completed).sort((a, b) => {
+        if (a.due_date && b.due_date) {
+            return new Date(a.due_date) - new Date(b.due_date);
+        }
+        if (a.due_date && !b.due_date) return -1;
+        if (!a.due_date && b.due_date) return 1;
+        
+        const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+
+    return sortedTodos.map(todo => {
+        const categoryEmojis = {
+            general: '📋', work: '💼', personal: '👤', health: '🏃',
+            learning: '📚', creative: '🎨', social: '👥', finance: '💰'
+        };
+        
+        const isOverdue = todo.due_date && new Date(todo.due_date) < new Date();
+        const isDueSoon = todo.due_date && new Date(todo.due_date) < new Date(Date.now() + 24 * 60 * 60 * 1000);
+        
+        const tags = todo.tags ? JSON.parse(todo.tags) : [];
+        
+        return `
+        <div class="p-4 rounded-lg bg-white/5 hover:bg-white/10 transition-all priority-${todo.priority} ${isOverdue ? 'border-l-4 border-red-500' : isDueSoon ? 'border-l-4 border-yellow-500' : ''}">
             <div class="flex items-center justify-between">
                 <div class="flex-1">
-                    <h4 class="font-bold text-lg">${todo.title}</h4>
-                    ${todo.description ? `<p class="text-sm text-gray-400">${todo.description}</p>` : ''}
-                    <div class="flex items-center gap-3 mt-2">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-lg">${categoryEmojis[todo.category] || '📋'}</span>
+                        <h4 class="font-bold text-lg">${todo.title}</h4>
+                        ${isOverdue ? '<span class="text-red-400 text-xs">⚠️ OVERDUE</span>' : isDueSoon ? '<span class="text-yellow-400 text-xs">⏰ DUE SOON</span>' : ''}
+                    </div>
+                    ${todo.description ? `<p class="text-sm text-gray-400 mb-2">${todo.description}</p>` : ''}
+                    ${todo.due_date ? `<p class="text-xs text-gray-500 mb-2">📅 Due: ${new Date(todo.due_date).toLocaleString()}</p>` : ''}
+                    <div class="flex items-center gap-2 flex-wrap">
                         <span class="px-2 py-1 rounded text-xs difficulty-${todo.difficulty}">${todo.difficulty.toUpperCase()}</span>
                         <span class="text-xs text-gray-400">+${todo.experience_points} XP</span>
+                        <span class="px-2 py-1 rounded text-xs bg-blue-500/20">${todo.category}</span>
+                        ${tags.map(tag => `<span class="px-2 py-1 rounded text-xs bg-purple-500/20">#${tag}</span>`).join('')}
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
@@ -356,7 +412,8 @@ const renderTodoList = () => {
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 };
 
 const renderAchievements = () => {
@@ -429,12 +486,19 @@ window.handleAddTodo = async (event) => {
     event.preventDefault();
     const formData = new FormData(event.target);
     
+    // Parse tags
+    const tagsString = formData.get('tags');
+    const tags = tagsString ? tagsString.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
+    
     try {
         const todo = await api.createTodo({
             title: formData.get('title'),
             description: formData.get('description'),
             priority: formData.get('priority'),
-            difficulty: formData.get('difficulty')
+            difficulty: formData.get('difficulty'),
+            category: formData.get('category'),
+            tags: tags,
+            due_date: formData.get('due_date')
         });
         
         todos.unshift(todo);
@@ -561,6 +625,19 @@ const init = async () => {
         setTimeout(() => loading.style.display = 'none', 300);
     }, 500);
 };
+
+// Register service worker for PWA
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+                console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+                console.log('SW registration failed: ', registrationError);
+            });
+    });
+}
 
 // Start the app
 init();
